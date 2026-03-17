@@ -39,6 +39,41 @@ const dietOptions: { value: DietaryPreference; label: string }[] = [
 export default function InventoryPanel({ inventory, setInventory, constraints, setConstraints }: Props) {
   const [inputText, setInputText] = useState("");
   const [exclusionText, setExclusionText] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { recognizeIngredients, isProcessing } = useImageRecognition();
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // Validate file
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image must be under 10MB");
+      return;
+    }
+
+    toast.info("🔍 Analyzing your ingredients...");
+    const ingredients = await recognizeIngredients(file);
+
+    if (ingredients.length === 0) {
+      toast.error("No ingredients detected. Try a clearer photo.");
+      return;
+    }
+
+    const newItems = ingredients.map((name) => ({
+      name,
+      daysUntilExpiry: undefined,
+    }));
+    setInventory([...inventory, ...newItems]);
+    toast.success(`Found ${ingredients.length} ingredient${ingredients.length > 1 ? "s" : ""}: ${ingredients.join(", ")}`);
+  };
 
   const addIngredients = () => {
     if (!inputText.trim()) return;
